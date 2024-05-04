@@ -17,15 +17,20 @@ class Solver:
     ) -> None:
         if n_qubits % 2 != 0:
             raise AttributeError("The number of qubits needs to be even.")
+        # Choses specific the randomness seed
         torch.manual_seed(seed)
+
+        # Sets user-defined parameters as attributes
         self.n_qubits = n_qubits
         self.depth = depth
         self.n_epochs = epochs
         self.points = points
 
-    def calc_deriv(self, outputs: torch.Tensor, inputs: torch.Tensor) -> torch.Tensor:
-        """Compute Laplassian of model that learns u(x,y), computes d^2u/dx^2+d^2u/dy^2
+    def laplacian(self, outputs: torch.Tensor, inputs: torch.Tensor) -> torch.Tensor:
+        """Returns Laplacian of model that learns u(x,y), computes d^2u/dx^2+d^2u/dy^2
         using two evaluations of torch.autograd."""
+
+        # Calculates first order derivatives
         grad = torch.autograd.grad(
             outputs=outputs,
             inputs=inputs,
@@ -47,7 +52,7 @@ class Solver:
 
         grad_x = grad[
             :, 0
-        ]  # Select the column corresponding to the derivative with respect to y
+        ]  # Select the column corresponding to the derivative with respect to x
         second_derivative_x = torch.autograd.grad(
             grad_x,
             inputs,
@@ -55,20 +60,21 @@ class Solver:
             create_graph=True,
             retain_graph=True,
         )[0]
-        lapl = torch.add(second_derivative_x[:, 0], second_derivative_y[:, 1])
 
-        return lapl
+        return torch.add(second_derivative_x[:, 0], second_derivative_y[:, 1])
 
     def loss_fn(self, model: torch.nn.Module, inputs: torch.Tensor) -> torch.Tensor:
         """Loss function encoding the problem to solve."""
         # Equation loss
-        model_output = model(inputs)
-        deriv_model = self.calc_deriv(model_output, inputs)
+        model_output = model(inputs)  # Evaluates model in training points
+        deriv_model = self.laplacian(
+            model_output, inputs
+        )  # Calculates Laplacian for the trained model
         deriv_exact = torch.zeros_like(model_output[:, 0])
 
         ode_loss = self.criterion(deriv_model, deriv_exact)
 
-        # Boundary loss, f(0) = 0
+        # Defining the  boundary collocation points
         boundary_left = inputs.detach().clone()
         boundary_left[:, 0] = 0
         boundary_bottom = inputs.detach().clone()
@@ -78,6 +84,7 @@ class Solver:
         boundary_top = inputs.detach().clone()
         boundary_top[:, 1] = 1
 
+        # Evaluating in the boundaries and calculating the loss
         boundary1_model = model(boundary_left)
         boundary1_exact = torch.sin(torch.pi * inputs[:, 1]).unsqueeze(1)
         boundary1_loss = self.criterion(boundary1_model, boundary1_exact)
@@ -97,8 +104,14 @@ class Solver:
             ode_loss + boundary1_loss + boundary2_loss + boundary3_loss + boundary4_loss
         )
 
+    def exact_laplace(self, domain: torch.Tensor):
+        exp_x = torch.exp(-torch.pi * domain[:, 0])
+        sin_y = torch.sin(torch.pi * domain[:, 1])
+        return exp_x * sin_y
+
     def train(self) -> None:
-        # Feature map
+        """Trains the QNN and populates the model attribute with the resulting model"""
+        # Create two feature maps (disjunct supports)
         fm_x = feature_map(
             n_qubits=self.n_qubits // 2,
             support=torch.arange(0, self.n_qubits // 2),
@@ -118,7 +131,7 @@ class Solver:
         # Ansatz
         ansatz = hea(self.n_qubits, self.depth)
 
-        # Observable
+        # Use the canonical observable
         observable = add(Z(i) for i in range(self.n_qubits))
 
         circuit = QuantumCircuit(self.n_qubits, chain(fm_x, fm_y, ansatz))
@@ -159,11 +172,7 @@ class Solver:
             optimizer.step()
 
     def plot(self) -> None:
-        xmin = 0
-        xmax = 0.999
-
-        # result_exact = f_exact(x_test).flatten()
-        x = torch.arange(xmin, xmax, 0.01)
+        x = torch.arange(0, 1, 0.01)
         xy_test = torch.cartesian_prod(x, x)
 
         X, Y = torch.meshgrid(x, x)
@@ -171,12 +180,19 @@ class Solver:
         result_model = (
             self.model(xy_test).detach().unflatten(0, (x.shape[0], x.shape[0]))
         )
+        result_exact = self.exact_laplace(xy_test).flatten()
 
-        # plt.plot(x_test, result_exact, label = "Exact solution")
-        plt.pcolormesh(
+        fig, axs = plt.subplots(1, 2)
+        axs[0].pcolormesh(
             X.detach().numpy(),
             Y.detach().numpy(),
             result_model.squeeze(2).detach().numpy(),
+            label=" Trained model",
+        )
+        axs[1].pcolormesh(
+            X.detach().numpy(),
+            Y.detach().numpy(),
+            result_exact.reshape(100, 100).T,
             label=" Trained model",
         )
         plt.show()

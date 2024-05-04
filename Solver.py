@@ -14,7 +14,16 @@ class Solver:
         epochs: int = 500,
         points: int = 10,
         seed: int = 0,
+        ode_rescale: float = 100,
     ) -> None:
+        """Class for solving the 2D Laplace equation using a QNN.
+        Arguments:
+             - n_qubits: number of qubits to use for the quantum circuits (multiple of 2)
+             - depth: the circuits depth for the HEA ansatz
+             - epochs: number of training epochs for the QNN
+             - points: number of square grid collocation points to train on
+             - seed: specific seed value for the pyTorch PRNG
+             - ode_rescale: factor by which to dampen the ODE loss"""
         if n_qubits % 2 != 0:
             raise AttributeError("The number of qubits needs to be even.")
         # Choses specific the randomness seed
@@ -25,6 +34,7 @@ class Solver:
         self.depth = depth
         self.n_epochs = epochs
         self.points = points
+        self.ode_rescale = ode_rescale
 
     def laplacian(self, outputs: torch.Tensor, inputs: torch.Tensor) -> torch.Tensor:
         """Returns Laplacian of model that learns u(x,y), computes d^2u/dx^2+d^2u/dy^2
@@ -101,10 +111,15 @@ class Solver:
         boundary4_loss = self.criterion(boundary4_model, boundary4_exact)
 
         return (
-            ode_loss + boundary1_loss + boundary2_loss + boundary3_loss + boundary4_loss
+            ode_loss / self.ode_rescale
+            + boundary1_loss
+            + boundary2_loss
+            + boundary3_loss
+            + boundary4_loss
         )
 
     def exact_laplace(self, domain: torch.Tensor):
+        """Returns exact solution of the 2D Laplace equation"""
         exp_x = torch.exp(-torch.pi * domain[:, 0])
         sin_y = torch.sin(torch.pi * domain[:, 1])
         return exp_x * sin_y
@@ -172,6 +187,7 @@ class Solver:
             optimizer.step()
 
     def plot(self) -> None:
+        """Creates plot comparing the exact solution to the one of the trained model"""
         x = torch.arange(0, 1, 0.01)
         xy_test = torch.cartesian_prod(x, x)
 
@@ -192,7 +208,7 @@ class Solver:
         axs[1].pcolormesh(
             X.detach().numpy(),
             Y.detach().numpy(),
-            result_exact.reshape(100, 100).T,
+            result_exact.reshape(100, 100),
             label=" Trained model",
         )
         plt.show()

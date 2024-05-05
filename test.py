@@ -20,8 +20,9 @@ def exact_laplace(domain: torch.Tensor):
 
 
 for seed in range(1, 11):
-    s = Solver(n_qubits=8, seed=seed)
+    s = Solver(seed=seed)
     s.train()
+    s.plot(f"plot{seed}.png")
     # Getting the exact solution and the DQC solution
     exact_sol = exact_laplace(domain).reshape(n_points_1d, n_points_1d).T
     dqc_sol = s.model(domain).reshape(n_points_1d, n_points_1d).T.detach()

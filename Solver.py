@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import torch
 from qadence import QNN, QuantumCircuit, Z, add, chain, feature_map, hea, kron
+from qadence.draw import display
 from qadence.types import BasisSet, ReuploadScaling
 
 
@@ -191,7 +192,7 @@ class Solver:
         x = torch.arange(0, 1, 0.01)
         xy_test = torch.cartesian_prod(x, x)
 
-        X, Y = torch.meshgrid(x, x)
+        X, Y = torch.meshgrid(x*100, x*100)
 
         result_model = (
             self.model(xy_test).detach().unflatten(0, (x.shape[0], x.shape[0]))
@@ -212,3 +213,32 @@ class Solver:
             label=" Trained model",
         )
         plt.show()
+
+    def visualize(self) -> None:
+        """Creates a circuit visualisation using qadence visualise."""
+        # Feature map
+        fm_x = feature_map(
+            n_qubits=2,
+            support=[0, 1],
+            param="x",
+            fm_type=BasisSet.FOURIER,
+            reupload_scaling=ReuploadScaling.TOWER,
+        )
+
+        fm_y = feature_map(
+            n_qubits=2,
+            param="y",
+            support=[2, 3],
+            fm_type=BasisSet.FOURIER,
+            reupload_scaling=ReuploadScaling.TOWER,
+        )
+
+        # Ansatz
+        ansatz = hea(self.n_qubits, self.depth)
+
+        # Observable
+        observable = add(Z(i) for i in range(self.n_qubits))
+
+        display(
+            QuantumCircuit(self.n_qubits, chain(kron(fm_x, fm_y), ansatz, observable))
+        )

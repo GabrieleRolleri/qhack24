@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import torch
-from qadence import QNN, QuantumCircuit, Z, add, chain, feature_map, hea
+from qadence import QNN, QuantumCircuit, Z, add, chain, feature_map, hea, kron
 from qadence.types import BasisSet, ReuploadScaling
 
 
@@ -149,7 +149,7 @@ class Solver:
         # Use the canonical observable
         observable = add(Z(i) for i in range(self.n_qubits))
 
-        circuit = QuantumCircuit(self.n_qubits, chain(fm_x, fm_y, ansatz))
+        circuit = QuantumCircuit(self.n_qubits, chain(kron(fm_x, fm_y), ansatz))
         self.model = QNN(circuit=circuit, observable=observable, inputs=["x", "y"])
 
         xmin = 0
@@ -181,7 +181,7 @@ class Solver:
 
             loss = self.loss_fn(inputs=xy_train, model=self.model)
             if epoch % 50 == 0:
-                print("Loss:", round(loss.item(), 4))
+                print(f"Loss (epoch {epoch}/{self.n_epochs}):", round(loss.item(), 4))
 
             loss.backward()
             optimizer.step()

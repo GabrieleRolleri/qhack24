@@ -1,6 +1,17 @@
 import matplotlib.pyplot as plt
 import torch
-from qadence import QNN, QuantumCircuit, Z, add, chain, feature_map, hea, kron
+from qadence import (
+    QNN,
+    QuantumCircuit,
+    Z,
+    add,
+    chain,
+    feature_map,
+    hea,
+    kron,
+    load,
+    save,
+)
 from qadence.draw import display
 from qadence.types import BasisSet, ReuploadScaling
 
@@ -254,3 +265,10 @@ class Solver:
         display(
             QuantumCircuit(self.n_qubits, chain(kron(fm_x, fm_y), ansatz, observable))
         )
+
+    def save(self, filename: str) -> None:
+        if hasattr(self, "model"):
+            save(self.model, folder=".", file_name=filename)
+
+    def load(self, filename: str) -> None:
+        self.model = load(filename)

@@ -206,6 +206,8 @@ class Solver:
             result_model.squeeze(2).detach().numpy(),
             label=" Trained model",
         )
+        axs[0].set_xlabel("x")
+        axs[0].set_ylabel("y")
         axs[0].title.set_text("DQC solution for u(x,y)")
         axs[1].pcolormesh(
             X.detach().numpy(),
@@ -213,12 +215,14 @@ class Solver:
             result_exact.reshape(100, 100),
             label=" Trained model",
         )
+        axs[1].set_xlabel("x")
+        axs[1].set_ylabel("y")
         axs[1].title.set_text("Analytical solution for u(x,y)")
         fig.suptitle(
             f"Model parameters: qubits={self.n_qubits}, epochs={self.n_epochs} and depth={self.depth}"
         )
         if filename != "":
-            plt.savefig(filename)
+            plt.savefig(filename, dpi=320)
         else:
             plt.show()
 

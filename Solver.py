@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import torch
 from qadence import QNN, QuantumCircuit, Z, add, chain, feature_map, hea, kron
+from qadence.draw import display
 from qadence.types import BasisSet, ReuploadScaling
 
 
@@ -9,9 +10,9 @@ class Solver:
 
     def __init__(
         self,
-        n_qubits: int = 4,
-        depth: int = 3,
-        epochs: int = 500,
+        n_qubits: int = 8,
+        depth: int = 6,
+        epochs: int = 800,
         points: int = 10,
         seed: int = 0,
         ode_rescale: float = 100,
@@ -186,12 +187,12 @@ class Solver:
             loss.backward()
             optimizer.step()
 
-    def plot(self) -> None:
+    def plot(self, filename: str = "") -> None:
         """Creates plot comparing the exact solution to the one of the trained model"""
         x = torch.arange(0, 1, 0.01)
         xy_test = torch.cartesian_prod(x, x)
 
-        X, Y = torch.meshgrid(x, x)
+        X, Y = torch.meshgrid(x * 100, x * 100)
 
         result_model = (
             self.model(xy_test).detach().unflatten(0, (x.shape[0], x.shape[0]))
@@ -205,10 +206,47 @@ class Solver:
             result_model.squeeze(2).detach().numpy(),
             label=" Trained model",
         )
+        axs[0].title.set_text("DQC solution for u(x,y)")
         axs[1].pcolormesh(
             X.detach().numpy(),
             Y.detach().numpy(),
             result_exact.reshape(100, 100),
             label=" Trained model",
         )
-        plt.show()
+        axs[1].title.set_text("Analytical solution for u(x,y)")
+        fig.suptitle(
+            f"Model parameters: qubits={self.n_qubits}, epochs={self.n_epochs} and depth={self.depth}"
+        )
+        if filename != "":
+            plt.savefig(filename)
+        else:
+            plt.show()
+
+    def visualize(self) -> None:
+        """Creates a circuit visualisation using qadence visualise."""
+        # Feature map
+        fm_x = feature_map(
+            n_qubits=self.n_qubits // 2,
+            support=torch.arange(0, self.n_qubits // 2),
+            param="x",
+            fm_type=BasisSet.FOURIER,
+            reupload_scaling=ReuploadScaling.TOWER,
+        )
+
+        fm_y = feature_map(
+            n_qubits=self.n_qubits // 2,
+            param="y",
+            support=torch.arange(self.n_qubits // 2, self.n_qubits),
+            fm_type=BasisSet.FOURIER,
+            reupload_scaling=ReuploadScaling.TOWER,
+        )
+
+        # Ansatz
+        ansatz = hea(self.n_qubits, self.depth)
+
+        # Observable
+        observable = add(Z(i) for i in range(self.n_qubits))
+
+        display(
+            QuantumCircuit(self.n_qubits, chain(kron(fm_x, fm_y), ansatz, observable))
+        )

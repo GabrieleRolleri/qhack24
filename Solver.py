@@ -226,17 +226,17 @@ class Solver:
         """Creates a circuit visualisation using qadence visualise."""
         # Feature map
         fm_x = feature_map(
-            n_qubits=2,
-            support=[0, 1],
+            n_qubits=self.n_qubits // 2,
+            support=torch.arange(0, self.n_qubits // 2),
             param="x",
             fm_type=BasisSet.FOURIER,
             reupload_scaling=ReuploadScaling.TOWER,
         )
 
         fm_y = feature_map(
-            n_qubits=2,
+            n_qubits=self.n_qubits // 2,
             param="y",
-            support=[2, 3],
+            support=torch.arange(self.n_qubits // 2, self.n_qubits),
             fm_type=BasisSet.FOURIER,
             reupload_scaling=ReuploadScaling.TOWER,
         )

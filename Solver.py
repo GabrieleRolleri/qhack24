@@ -268,7 +268,7 @@ class Solver:
 
     def save(self, filename: str) -> None:
         if hasattr(self, "model"):
-            save(self.model, folder=".", file_name=filename)
+            save(self.model, folder=".", file_name=filename, format="PT")
 
     def load(self, filename: str) -> None:
         self.model = load(filename)

@@ -215,7 +215,7 @@ class Solver:
         )
         axs[1].title.set_text("Analytical solution for u(x,y)")
         fig.suptitle(
-            f"Model parameters: qubits={self.n_qubits}, epochs={self.n_epochs} and dept={self.depth}"
+            f"Model parameters: qubits={self.n_qubits}, epochs={self.n_epochs} and depth={self.depth}"
         )
         if filename != "":
             plt.savefig(filename)
